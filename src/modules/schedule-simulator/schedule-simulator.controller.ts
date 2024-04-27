@@ -75,6 +75,32 @@ export class ScheduleSimulatorController {
     return paymentSchedule;
   }
 
+  @Post('/daily-schedule')
+  @HttpCode(200)
+  getDailySchedule(
+    @Body()
+    scheludeDto: {
+      loanPrincipal: number;
+      startDate: Date;
+      firstDueDate: Date;
+      loanTerm: number;
+      effectiveAnualRate: number;
+      paymentFrecuency: string;
+      businessDays: boolean;
+      calculationType: string;
+      scheduleType: string;
+      typeVehicleInsurance: string;
+      vehicleInsurance: number;
+      typeLifeInsurance: string;
+      igv: boolean;
+    },
+  ) {
+    const calculatedPayment =
+      this.scheduleSimulatorService.dailySchedule(scheludeDto);
+
+    return calculatedPayment;
+  }
+
   @Post('/payment')
   @HttpCode(200)
   getPayment(
