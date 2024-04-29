@@ -188,7 +188,7 @@ export class ScheduleSimulatorService {
     return +estimatedLoanInstalment.toFixed(2);
   }
 
-  public calculateEffectiveAnualRate(params: effectiveAnualRateParams): number {
+  public calculateEffectiveAnualRate(params: effectiveAnualRateParams) {
     let maximunRate: number = 9.0;
     let minimunRate: number = 0.0;
     let estimatedAnualRate: number = (maximunRate + minimunRate) / 2;
@@ -273,23 +273,14 @@ export class ScheduleSimulatorService {
       }
     }
 
-    return +estimatedAnualRate.toFixed(4);
-  }
+    const effectiveAnnualRate = +estimatedAnualRate.toFixed(4);
+    // eslint-disable-next-line prettier/prettier
+    const effectiveMonthlyRate = +((1 + effectiveAnnualRate) ** (1 / 12) - 1).toFixed(4);
+    // eslint-disable-next-line prettier/prettier
+    const effectiveDailyRate = +((1 + effectiveAnnualRate) ** (1 / 365) - 1).toFixed(4);
 
-  private checkSimulationConfig(params: scheduleParams) {
-    if (params.idSheduleConfigSimulation) {
-      params.loanPrincipal = configSimulation[0].loanPrincipal;
-      params.startDate = new Date(configSimulation[0].startDate);
-      params.firstDueDate = new Date(configSimulation[0].firstDueDate);
-      params.loanTerm = configSimulation[0].loanTerm;
-      params.effectiveAnualRate = configSimulation[0].effectiveAnualRate;
-      params.paymentFrequency = configSimulation[0].paymentFrequency;
-      params.businessDays = configSimulation[0].businessDays;
-      params.calculationType = configSimulation[0].calculationType;
-      params.scheduleType = configSimulation[0].scheduleType;
-      params.paymentConcepts = configSimulation[0].paymentConcepts;
-      params.paymentAmmount = this.calculateMonthlyFee(params);
-    }
+
+    return { effectiveAnnualRate, effectiveMonthlyRate, effectiveDailyRate };
   }
 
   public scheduleWithOutCapitalization(
@@ -473,6 +464,21 @@ export class ScheduleSimulatorService {
     return { totalInterest: +totalInterest.toFixed(2), dailySchedule };
   }
 
+  private checkSimulationConfig(params: scheduleParams) {
+    if (params.idSheduleConfigSimulation) {
+      params.loanPrincipal = configSimulation[0].loanPrincipal;
+      params.startDate = new Date(configSimulation[0].startDate);
+      params.firstDueDate = new Date(configSimulation[0].firstDueDate);
+      params.loanTerm = configSimulation[0].loanTerm;
+      params.effectiveAnualRate = configSimulation[0].effectiveAnualRate;
+      params.paymentFrequency = configSimulation[0].paymentFrequency;
+      params.businessDays = configSimulation[0].businessDays;
+      params.calculationType = configSimulation[0].calculationType;
+      params.scheduleType = configSimulation[0].scheduleType;
+      params.paymentConcepts = configSimulation[0].paymentConcepts;
+      params.paymentAmmount = this.calculateMonthlyFee(params);
+    }
+  }
   private calculateDaysBetweenTwoDates(startDate: Date, endDate: Date) {
     const difference: number = Math.abs(
       endDate.getTime() - startDate.getTime(),

@@ -151,11 +151,9 @@ export class ScheduleSimulatorController {
       }[];
     },
   ) {
-    const effectiveAnnualRate =
+    const rates =
       this.scheduleSimulatorService.calculateEffectiveAnualRate(annualRateDto);
 
-    return {
-      effectiveAnnualRate,
-    };
+    return rates;
   }
 }
