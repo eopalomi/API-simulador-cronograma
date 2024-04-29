@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import * as configSimulation from './mocks/scheduleSimulationConfig.json';
 
 interface LoanInstallment {
   numberPayment: number;
@@ -6,22 +7,17 @@ interface LoanInstallment {
   principal: number;
   interest: number;
   allInterest: number;
+  initialInterestBag: number;
+  interestBag: number;
   vehicleInsurance: number;
   lifeInsurance: number;
-  igv: number;
-  preventionInsurance: number;
   finalPrincipal: number;
-  finalPayment: number;
+  paymentAmount: number;
 }
 
-// interface dailySchedule {
-//   date: string;
-//   numberDate: number;
-//   numberPayment: number;
-//   principal: number;
-//   interest: number;
-//   finalPrincipal: number;
-// }
+type LoanInstallmentWithDynamicsProps = LoanInstallment & {
+  [key: string]: number | string;
+};
 
 interface monthlyFeeParams {
   loanPrincipal: number;
@@ -29,14 +25,15 @@ interface monthlyFeeParams {
   firstDueDate: Date;
   loanTerm: number;
   effectiveAnualRate: number;
-  paymentFrecuency: string;
+  paymentFrequency: string;
   businessDays: boolean;
   calculationType: string;
   scheduleType: string;
-  typeVehicleInsurance: string;
-  vehicleInsurance: number;
-  typeLifeInsurance: string;
-  igv: boolean;
+  paymentConcepts: {
+    code: string;
+    name: string;
+    ammount?: number;
+  }[];
 }
 
 interface effectiveAnualRateParams {
@@ -44,32 +41,35 @@ interface effectiveAnualRateParams {
   startDate: Date;
   firstDueDate: Date;
   loanTerm: number;
-  loanInstallment: number;
-  paymentFrecuency: string;
+  paymentAmmount: number;
+  paymentFrequency: string;
   businessDays: boolean;
   calculationType: string;
   scheduleType: string;
-  typeVehicleInsurance: string;
-  vehicleInsurance: number;
-  typeLifeInsurance: string;
-  igv: boolean;
+  paymentConcepts: {
+    code: string;
+    name: string;
+    ammount?: number;
+  }[];
 }
 
 interface scheduleParams {
+  idSheduleConfigSimulation?: string;
   loanPrincipal: number;
   startDate: Date;
   firstDueDate: Date;
-  loanInstallment?: number;
+  paymentAmmount?: number;
   loanTerm: number;
   effectiveAnualRate: number;
-  paymentFrecuency: string;
+  paymentFrequency: string;
   businessDays: boolean;
   calculationType: string;
   scheduleType: string;
-  typeVehicleInsurance: string;
-  vehicleInsurance: number;
-  typeLifeInsurance: string;
-  igv: boolean;
+  paymentConcepts: {
+    code: string;
+    name: string;
+    ammount?: number;
+  }[];
 }
 
 @Injectable()
@@ -106,9 +106,10 @@ export class ScheduleSimulatorService {
           initialPrincipal,
         );
 
-        const installmentsWithNoAdditional = +(
-          estimatedLoanInstalment - params.vehicleInsurance ?? 0.0
-        ).toFixed(2);
+        const installment = this.calculateInstallmentConcepts(
+          estimatedLoanInstalment,
+          params.paymentConcepts,
+        );
 
         const interestOfTheBag =
           initialInterestBag > 0
@@ -126,22 +127,21 @@ export class ScheduleSimulatorService {
         ).toFixed(2);
 
         const interest: number =
-          allInterest > installmentsWithNoAdditional
-            ? +installmentsWithNoAdditional.toFixed(2)
+          allInterest > installment.paymentAmountNoFees
+            ? installment.paymentAmountNoFees
             : allInterest;
-
-        // const igv: number =
-        //   params.igv === true ? +(interest * 0.18).toFixed(2) : 0.0;
-        const igv: number = 0.0;
 
         const interestBag: number = +(allInterest - interest).toFixed(2);
 
         const principal: number =
-          allInterest > installmentsWithNoAdditional
+          allInterest > installment.paymentAmountNoFees
             ? 0.0
-            : +(installmentsWithNoAdditional - interest - igv).toFixed(2);
+            : +(installment.paymentAmountNoFees - interest).toFixed(2);
 
         finalPrincipal = +(initialPrincipal - principal).toFixed(2);
+        const vehicleInsurance =
+          params.paymentConcepts.find((item) => item.code === 'vehicle-ins')
+            ?.ammount ?? 0;
 
         table.push({
           nro: numberOfPayment,
@@ -151,8 +151,8 @@ export class ScheduleSimulatorService {
           interest,
           initial: initialPrincipal,
           final: finalPrincipal,
-          fullPayment: principal + interest + params.vehicleInsurance,
-          vehicleInsurance: params.vehicleInsurance,
+          fullPayment: principal + interest + vehicleInsurance,
+          vehicleInsurance: vehicleInsurance,
         });
 
         initialInterestBag = interestBag;
@@ -199,7 +199,7 @@ export class ScheduleSimulatorService {
 
       const installments = new Array(params.loanTerm).fill(0.0);
       let numberOfPayment: number = 0;
-      let initialPrincipal: number = +params.loanPrincipal;
+      let initialPrincipal: number = params.loanPrincipal;
       let finalPrincipal: number = 0.0;
       const dueDate: Date = new Date(params.firstDueDate);
       let startDate: Date = new Date(params.startDate);
@@ -207,6 +207,7 @@ export class ScheduleSimulatorService {
 
       installments.forEach(() => {
         numberOfPayment = numberOfPayment++;
+
         const daysBetweenDates = this.calculateDaysBetweenTwoDates(
           startDate,
           dueDate,
@@ -218,9 +219,10 @@ export class ScheduleSimulatorService {
           initialPrincipal,
         );
 
-        const installmentsWithNoAdditional = +(
-          params.loanInstallment - params.vehicleInsurance ?? 0.0
-        ).toFixed(2);
+        const installment = this.calculateInstallmentConcepts(
+          params.paymentAmmount,
+          params.paymentConcepts,
+        );
 
         const interestOfTheBag =
           initialInterestBag > 0
@@ -238,19 +240,16 @@ export class ScheduleSimulatorService {
         ).toFixed(2);
 
         const interest: number =
-          allInterest > installmentsWithNoAdditional / 1.18
-            ? +(installmentsWithNoAdditional / 1.18).toFixed(2)
+          allInterest > installment.paymentAmountNoFees
+            ? installment.paymentAmountNoFees
             : allInterest;
-
-        const igv: number =
-          params.igv === true ? +(interest * 0.18).toFixed(2) : 0.0;
 
         const interestBag: number = +(allInterest - interest).toFixed(2);
 
         const principal: number =
-          allInterest > installmentsWithNoAdditional
+          allInterest > installment.paymentAmountNoFees
             ? 0.0
-            : +(installmentsWithNoAdditional - interest - igv).toFixed(2);
+            : +(installment.paymentAmountNoFees - interest).toFixed(2);
 
         finalPrincipal = +(initialPrincipal - principal).toFixed(2);
 
@@ -277,38 +276,57 @@ export class ScheduleSimulatorService {
     return +estimatedAnualRate.toFixed(4);
   }
 
+  private checkSimulationConfig(params: scheduleParams) {
+    if (params.idSheduleConfigSimulation) {
+      params.loanPrincipal = configSimulation[0].loanPrincipal;
+      params.startDate = new Date(configSimulation[0].startDate);
+      params.firstDueDate = new Date(configSimulation[0].firstDueDate);
+      params.loanTerm = configSimulation[0].loanTerm;
+      params.effectiveAnualRate = configSimulation[0].effectiveAnualRate;
+      params.paymentFrequency = configSimulation[0].paymentFrequency;
+      params.businessDays = configSimulation[0].businessDays;
+      params.calculationType = configSimulation[0].calculationType;
+      params.scheduleType = configSimulation[0].scheduleType;
+      params.paymentConcepts = configSimulation[0].paymentConcepts;
+      params.paymentAmmount = this.calculateMonthlyFee(params);
+    }
+  }
+
   public scheduleWithOutCapitalization(
     params: scheduleParams,
-  ): LoanInstallment[] {
-    const installments = new Array(params.loanTerm).fill(
-      params.loanInstallment,
+  ): LoanInstallmentWithDynamicsProps[] {
+    this.checkSimulationConfig(params);
+
+    const paymentAmmount: number =
+      params.paymentAmmount ?? this.calculateMonthlyFee(params);
+
+    const installment = this.calculateInstallmentConcepts(
+      paymentAmmount,
+      params.paymentConcepts,
     );
+
+    const installments = new Array(params.loanTerm).fill(paymentAmmount);
     let numberOfPayment: number = 0;
-    let initialPrincipal: number = +params.loanPrincipal;
+    let initialPrincipal: number = params.loanPrincipal;
     let finalPrincipal: number = 0.0;
-    const dueDate: Date = new Date(params.firstDueDate);
-    let startDate: Date = new Date(params.startDate);
-    const paymentSchedule: LoanInstallment[] = [];
     let initialInterestBag: number = 0.0;
-    const consoleTable: any = [];
+    let startDate: Date = new Date(params.startDate);
+    const dueDate: Date = new Date(params.firstDueDate);
+    const paymentSchedule: LoanInstallmentWithDynamicsProps[] = [];
 
     installments.forEach((rs, idx) => {
       numberOfPayment++;
+
       const daysBetweenDates = this.calculateDaysBetweenTwoDates(
         startDate,
         dueDate,
       );
 
-      const calculatedInterest: number = this.calculateInterest(
+      const calculateInterest = this.calculateInterest(
         params.effectiveAnualRate,
         daysBetweenDates,
         initialPrincipal,
       );
-      const installmentsWithNoAdditional =
-        this.calculateInstallmentsWithoutAdditional(
-          params.loanInstallment,
-          params.vehicleInsurance,
-        );
 
       const interestOfTheBag =
         initialInterestBag > 0
@@ -318,140 +336,53 @@ export class ScheduleSimulatorService {
               initialInterestBag,
             )
           : 0.0;
+
       const allInterest = +(
-        calculatedInterest +
+        calculateInterest +
         initialInterestBag +
         interestOfTheBag
       ).toFixed(2);
 
       const interest: number =
-        allInterest > installmentsWithNoAdditional / 1.18
-          ? +(installmentsWithNoAdditional / 1.18).toFixed(2)
+        allInterest > installment.paymentAmountNoFees
+          ? installment.paymentAmountNoFees
           : allInterest;
-
-      const igv: number =
-        params.igv === true ? +(interest * 0.18).toFixed(2) : 0.0;
 
       const interestBag: number = +(allInterest - interest).toFixed(2);
 
-      let principal: number =
-        allInterest > installmentsWithNoAdditional
-          ? 0.0
-          : +(installmentsWithNoAdditional - interest - igv).toFixed(2);
-
-      finalPrincipal = +(initialPrincipal - principal).toFixed(2);
-
-      // Ajuste de la ultima cuota
-      if (idx + 1 === installments.length) {
-        principal = +(finalPrincipal + principal).toFixed(2);
-        finalPrincipal = 0.0;
-      }
-
-      consoleTable.push({
-        cta: numberOfPayment,
-        dueDate: dueDate.toISOString().substring(0, 10),
-        days: daysBetweenDates,
-        initial: initialPrincipal,
-        final: finalPrincipal,
-        principal: principal,
-        interest: interest,
-        KxI: calculatedInterest,
-        allInterest: allInterest,
-        insurance: params.vehicleInsurance,
-        bagInit: initialInterestBag,
-        bagInterest: interestOfTheBag,
-        bagFinal: interestBag,
-        igv: igv,
-        payment: +(
-          interest +
-          principal +
-          igv +
-          params.vehicleInsurance
-        ).toFixed(2),
-      });
-
-      const loanInstallment: LoanInstallment = {
-        numberPayment: numberOfPayment,
-        paymentDate: dueDate.toISOString().substring(0, 10),
-        principal: principal,
-        interest: interest,
-        allInterest: allInterest,
-        vehicleInsurance: params.vehicleInsurance,
-        lifeInsurance: 0.0,
-        igv: igv,
-        preventionInsurance: 0.0,
-        finalPrincipal: finalPrincipal,
-        finalPayment: principal + interest + params.vehicleInsurance + igv,
-      };
-
-      initialInterestBag = interestBag;
-      initialPrincipal = finalPrincipal;
-      startDate = new Date(dueDate.getTime());
-      dueDate.setMonth(dueDate.getMonth() + 1);
-
-      paymentSchedule.push(loanInstallment);
-    });
-
-    console.table(consoleTable);
-    return paymentSchedule;
-  }
-
-  public scheduleWithCapitalization(params: scheduleParams): LoanInstallment[] {
-    const installments = new Array(params.loanTerm).fill(
-      params.loanInstallment,
-    );
-    let numberOfPayment: number = 0;
-    let initialPrincipal: number = params.loanPrincipal;
-    let finalPrincipal: number = 0.0;
-    let startDate: Date = new Date(params.startDate);
-    const dueDate: Date = new Date(params.firstDueDate);
-    const paymentSchedule: LoanInstallment[] = [];
-
-    installments.forEach((rs, idx) => {
-      numberOfPayment++;
-      const daysBetweenDates = this.calculateDaysBetweenTwoDates(
-        startDate,
-        dueDate,
-      );
-
-      const interest: number = this.calculateInterest(
-        params.effectiveAnualRate,
-        daysBetweenDates,
-        initialPrincipal,
-      );
-
-      let principal = +(
-        params.loanInstallment -
-        params.vehicleInsurance -
-        interest
-      ).toFixed(2);
+      let principal = +(installment.paymentAmountNoFees - interest).toFixed(2);
 
       finalPrincipal = +(initialPrincipal - principal).toFixed(2);
       initialPrincipal = +finalPrincipal.toFixed(2);
 
       if (idx + 1 === installments.length) {
         principal = +(finalPrincipal + principal).toFixed(2);
-        finalPrincipal = 0.0;
+        finalPrincipal = 0;
       }
 
-      startDate = new Date(dueDate);
-
-      const loanInstallment: LoanInstallment = {
+      const loanInstallment = {
         numberPayment: numberOfPayment,
         paymentDate: dueDate.toISOString().substring(0, 10),
         principal: principal,
         interest: interest,
-        allInterest: 0.0,
-        vehicleInsurance: params.vehicleInsurance,
-        lifeInsurance: 0.0,
-        igv: 0.0,
-        preventionInsurance: 0.0,
+        allInterest: allInterest,
+        vehicleInsurance: installment.vehicleInsurance || undefined,
+        lifeInsurance: installment.lifeInsurance || undefined,
         finalPrincipal: finalPrincipal,
-        finalPayment: principal + interest + params.vehicleInsurance,
+        initialInterestBag,
+        interestBag,
+        paymentAmount: +(
+          principal +
+          interest +
+          installment.ammountOfConcepts
+        ).toFixed(2),
+        ...installment.concepts,
       };
 
       paymentSchedule.push(loanInstallment);
 
+      initialInterestBag = interestBag;
+      startDate = new Date(dueDate);
       dueDate.setMonth(dueDate.getMonth() + 1);
     });
 
@@ -474,15 +405,19 @@ export class ScheduleSimulatorService {
     let daysOfPayments: number = 0;
     let totalInterest: number = 0;
     let loanPrincipal = params.loanPrincipal;
+    let initialBag: number = 0;
+    let previusInterest: number = 0;
+    let previusInterestBag: number = 0;
 
-    const loanInstallment = this.calculateMonthlyFee(params);
+    const paymentAmmount = this.calculateMonthlyFee(params);
 
     const schedule =
       params.scheduleType === 'NOR'
-        ? this.scheduleWithCapitalization({ ...params, loanInstallment })
-        : this.scheduleWithOutCapitalization({ ...params, loanInstallment });
+        ? this.scheduleWithOutCapitalization({ ...params, paymentAmmount })
+        : this.scheduleWithOutCapitalization({ ...params, paymentAmmount });
+
     console.table(schedule);
-    const consoleTable: any = [];
+    // const consoleTable: any = [];
     const dailySchedule: any = [];
 
     installments.forEach((ele, idx) => {
@@ -502,33 +437,39 @@ export class ScheduleSimulatorService {
         loanPrincipal,
       );
 
-      consoleTable.push({
-        dueDate: day.toISOString().substring(0, 10),
-        numberOfDay,
+      const calculatedInterestBag: number = this.calculateInterest(
+        params.effectiveAnualRate,
         daysOfPayments,
-        interest: calculatedInterest,
-        principal: scheduleInstallment?.principal ?? 0.0,
-        scheduleInterest: scheduleInstallment?.interest ?? 0.0,
-        effectiveAnualRate: params.effectiveAnualRate,
-      });
+        initialBag,
+      );
 
       dailySchedule.push({
         dueDate: day.toISOString().substring(0, 10),
         numberOfDay,
         daysOfPayments,
         interest: calculatedInterest,
-        principal: scheduleInstallment?.principal ?? 0.0,
+        dailyinterest: +(calculatedInterest - previusInterest).toFixed(2),
+        interesBag: calculatedInterestBag ?? 0.0, // eslint-disable-next-line prettier/prettier
+        dailyinterestBag: +(calculatedInterestBag - previusInterestBag).toFixed(2), 
+        schedulePrincipal: scheduleInstallment?.principal ?? 0.0,
         scheduleInterest: scheduleInstallment?.interest ?? 0.0,
+        scheduleInitialBag: scheduleInstallment?.interestBag ?? 0.0,
       });
+
+      previusInterest = calculatedInterest;
+      previusInterestBag = calculatedInterestBag;
 
       if (scheduleInstallment) {
         daysOfPayments = 0;
+        previusInterest = 0;
+        previusInterestBag = 0;
         loanPrincipal -= scheduleInstallment.principal;
         totalInterest += calculatedInterest;
+        initialBag = scheduleInstallment?.interestBag ?? 0.0;
       }
     });
 
-    console.table(consoleTable);
+    // console.table(consoleTable);
     return { totalInterest: +totalInterest.toFixed(2), dailySchedule };
   }
 
@@ -546,16 +487,50 @@ export class ScheduleSimulatorService {
     days: number,
     principal: number,
   ): number {
-    return +(
-      ((1 + effectiveAnnualRate) ** (days / 365) - 1) *
-      principal
-    ).toFixed(2);
+    const interest =
+      ((1 + effectiveAnnualRate) ** (days / 365) - 1) * principal;
+
+    const roundinterest = parseFloat((interest + Number.EPSILON).toFixed(2));
+
+    return roundinterest;
   }
 
-  private calculateInstallmentsWithoutAdditional(
-    loanInstallment: number,
-    vehicleInsurance: number,
-  ): number {
-    return +(loanInstallment - vehicleInsurance).toFixed(2);
+  private calculateInstallmentConcepts(
+    paymentAmmount: number,
+    paymentConcepts: {
+      code: string;
+      name: string;
+      ammount?: number;
+    }[],
+  ) {
+    let ammountOfConcepts: number = 0;
+    let vehicleInsurance = 0;
+    let lifeInsurance = 0;
+    const concepts: Record<string, number> = {};
+
+    paymentConcepts.forEach((rs) => {
+      ammountOfConcepts += rs.ammount ?? 0;
+
+      if (rs.code === 'vehicle-ins') {
+        vehicleInsurance = rs.ammount ?? 0;
+      } else if (rs.code === 'life-ins') {
+        lifeInsurance = rs.ammount ?? 0;
+      } else {
+        concepts[rs.name] = rs.ammount ?? 0;
+      }
+    });
+
+    const paymentAmountNoFees = +(paymentAmmount - ammountOfConcepts).toFixed(
+      2,
+    );
+
+    return {
+      paymentAmmount,
+      paymentAmountNoFees,
+      vehicleInsurance,
+      lifeInsurance,
+      ammountOfConcepts,
+      concepts: concepts,
+    };
   }
 }

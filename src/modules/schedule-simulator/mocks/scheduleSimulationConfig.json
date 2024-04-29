@@ -1,0 +1,38 @@
+[{
+    "loanPrincipal": 25000.00,
+    "startDate": "2023-10-13",
+    "firstDueDate": "2023-11-13",
+    "loanTerm": 24,
+    "effectiveAnualRate": 0.6187,
+    "paymentFrequency": "M",
+    "businessDays": false,
+    "calculationType": "CTA",
+    "scheduleType": "NOR",
+    "paymentConcepts": [
+        {
+            "code":"vehicle-ins",
+            "name":"Vehicle Insurance",
+            "ammount": 25
+        },
+        {
+            "code":"life-ins",
+            "name":"Life Insurance",
+            "ammount": 10
+        },
+        {   
+            "code":"pago-1",
+            "name":"conceptoAdicional1",
+            "ammount":2.50
+        },
+        {   
+            "code":"pago-2",
+            "name":"conceptoAdicional2",
+            "ammount":3.00
+        },
+        {   
+            "code":"pago-3",
+            "name":"conceptoAdicional3",
+            "ammount":4.00
+        }
+    ]
+}]

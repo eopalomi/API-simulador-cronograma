@@ -10,67 +10,66 @@ export class ScheduleSimulatorController {
   getSchedule(
     @Body()
     scheludeDto: {
+      idSheduleConfigSimulation?: string;
       loanPrincipal: number;
       startDate: Date;
       firstDueDate: Date;
       loanTerm: number;
       effectiveAnualRate: number;
-      paymentFrecuency: string;
+      paymentAmmount?: number;
+      paymentFrequency: string;
       businessDays: boolean;
       calculationType: string;
       scheduleType: string;
-      typeVehicleInsurance: string;
-      vehicleInsurance: number;
-      typeLifeInsurance: string;
-      igv: boolean;
+      paymentConcepts: {
+        code: string;
+        name: string;
+        ammount?: number;
+      }[];
     },
   ) {
     const paymentSchedule = {
-      installments: null,
+      installments: undefined,
+      effectiveAnualRate: null,
     };
-
-    const calculatedPayment =
-      this.scheduleSimulatorService.calculateMonthlyFee(scheludeDto);
 
     if (scheludeDto.scheduleType === 'NOR') {
       paymentSchedule.installments =
-        this.scheduleSimulatorService.scheduleWithCapitalization({
+        this.scheduleSimulatorService.scheduleWithOutCapitalization({
+          idSheduleConfigSimulation: scheludeDto.idSheduleConfigSimulation,
           loanPrincipal: scheludeDto.loanPrincipal,
           startDate: scheludeDto.startDate,
           firstDueDate: new Date(scheludeDto.firstDueDate),
-          loanInstallment: calculatedPayment,
           loanTerm: scheludeDto.loanTerm,
           effectiveAnualRate: scheludeDto.effectiveAnualRate,
-          paymentFrecuency: scheludeDto.paymentFrecuency,
+          paymentAmmount: scheludeDto.paymentAmmount,
+          paymentFrequency: scheludeDto.paymentFrequency,
           businessDays: scheludeDto.businessDays,
           calculationType: scheludeDto.calculationType,
           scheduleType: scheludeDto.scheduleType,
-          typeVehicleInsurance: scheludeDto.typeVehicleInsurance,
-          typeLifeInsurance: scheludeDto.typeLifeInsurance,
-          vehicleInsurance: scheludeDto.vehicleInsurance,
-          igv: scheludeDto.igv,
+          paymentConcepts: scheludeDto.paymentConcepts,
         });
     }
 
-    if (scheludeDto.scheduleType === 'REP') {
-      paymentSchedule.installments =
-        this.scheduleSimulatorService.scheduleWithOutCapitalization({
-          loanPrincipal: scheludeDto.loanPrincipal,
-          startDate: scheludeDto.startDate,
-          firstDueDate: new Date(scheludeDto.firstDueDate),
-          loanInstallment: calculatedPayment,
-          loanTerm: scheludeDto.loanTerm,
-          effectiveAnualRate: scheludeDto.effectiveAnualRate,
-          paymentFrecuency: scheludeDto.paymentFrecuency,
-          businessDays: scheludeDto.businessDays,
-          calculationType: scheludeDto.calculationType,
-          scheduleType: scheludeDto.scheduleType,
-          typeVehicleInsurance: scheludeDto.typeVehicleInsurance,
-          vehicleInsurance: scheludeDto.vehicleInsurance,
-          typeLifeInsurance: scheludeDto.typeLifeInsurance,
-          igv: scheludeDto.igv,
-        });
-    }
+    // if (scheludeDto.scheduleType === 'REP') {
+    //   paymentSchedule.installments =
+    //     this.scheduleSimulatorService.scheduleWithOutCapitalization({
+    //       loanPrincipal: scheludeDto.loanPrincipal,
+    //       startDate: scheludeDto.startDate,
+    //       firstDueDate: new Date(scheludeDto.firstDueDate),
+    //       loanTerm: scheludeDto.loanTerm,
+    //       effectiveAnualRate: scheludeDto.effectiveAnualRate,
+    //       paymentFrequency: scheludeDto.paymentFrequency,
+    //       businessDays: scheludeDto.businessDays,
+    //       calculationType: scheludeDto.calculationType,
+    //       scheduleType: scheludeDto.scheduleType,
+    //       typeVehicleInsurance: scheludeDto.typeVehicleInsurance,
+    //       vehicleInsurance: scheludeDto.vehicleInsurance,
+    //       typeLifeInsurance: scheludeDto.typeLifeInsurance,
+    //       igv: scheludeDto.igv,
+    //     });
+    // }
+    paymentSchedule.effectiveAnualRate = scheludeDto.effectiveAnualRate;
 
     return paymentSchedule;
   }
@@ -85,14 +84,15 @@ export class ScheduleSimulatorController {
       firstDueDate: Date;
       loanTerm: number;
       effectiveAnualRate: number;
-      paymentFrecuency: string;
+      paymentFrequency: string;
       businessDays: boolean;
       calculationType: string;
       scheduleType: string;
-      typeVehicleInsurance: string;
-      vehicleInsurance: number;
-      typeLifeInsurance: string;
-      igv: boolean;
+      paymentConcepts: {
+        code: string;
+        name: string;
+        ammount?: number;
+      }[];
     },
   ) {
     const calculatedPayment =
@@ -111,14 +111,15 @@ export class ScheduleSimulatorController {
       firstDueDate: Date;
       loanTerm: number;
       effectiveAnualRate: number;
-      paymentFrecuency: string;
+      paymentFrequency: string;
       businessDays: boolean;
       calculationType: string;
       scheduleType: string;
-      typeVehicleInsurance: string;
-      vehicleInsurance: number;
-      typeLifeInsurance: string;
-      igv: boolean;
+      paymentConcepts: {
+        code: string;
+        name: string;
+        ammount?: number;
+      }[];
     },
   ) {
     const calculatedPayment =
@@ -138,15 +139,16 @@ export class ScheduleSimulatorController {
       startDate: Date;
       firstDueDate: Date;
       loanTerm: number;
-      loanInstallment: number;
-      paymentFrecuency: string;
+      paymentAmmount: number;
+      paymentFrequency: string;
       businessDays: boolean;
       calculationType: string;
       scheduleType: string;
-      typeVehicleInsurance: string;
-      vehicleInsurance: number;
-      typeLifeInsurance: string;
-      igv: boolean;
+      paymentConcepts: {
+        code: string;
+        name: string;
+        ammount?: number;
+      }[];
     },
   ) {
     const effectiveAnnualRate =
